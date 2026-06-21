@@ -1291,7 +1291,12 @@ public class Account {
         
         self.contactSyncManager = ContactSyncManager(postbox: postbox, network: network, accountPeerId: peerId, stateManager: self.stateManager)
         self.localInputActivityManager = PeerInputActivityManager()
-        self.accountPresenceManager = AccountPresenceManager(shouldKeepOnlinePresence: self.shouldKeepOnlinePresence.get(), network: network)
+        let shouldKeepOnlinePresence = combineLatest(self.shouldKeepOnlinePresence.get(), ayuSettings(postbox: postbox))
+        |> map { shouldKeepOnlinePresence, settings -> Bool in
+            return shouldKeepOnlinePresence && settings.sendOnlineStatus
+        }
+        |> distinctUntilChanged
+        self.accountPresenceManager = AccountPresenceManager(shouldKeepOnlinePresence: shouldKeepOnlinePresence, network: network)
         let _ = (postbox.transaction { transaction -> Void in
             transaction.updatePeerPresencesInternal(presences: [peerId: TelegramUserPresence(status: .present(until: Int32.max - 1), lastActivity: 0)], merge: { _, updated in return updated })
             transaction.setNeedsPeerGroupMessageStatsSynchronization(groupId: Namespaces.PeerGroup.archive, namespace: Namespaces.Message.Cloud)
@@ -1421,7 +1426,11 @@ public class Account {
         self.managedOperationsDisposable.add(managedPeerTimestampAttributeOperations(network: self.network, postbox: self.postbox).start())
         self.managedOperationsDisposable.add(managedSynchronizeViewStoriesOperations(postbox: self.postbox, network: self.network, stateManager: self.stateManager).start())
         self.managedOperationsDisposable.add(managedSynchronizePeerStoriesOperations(postbox: self.postbox, network: self.network, stateManager: self.stateManager).start())
-        self.managedOperationsDisposable.add(managedLocalTypingActivities(activities: self.localInputActivityManager.allActivities(), postbox: self.stateManager.postbox, network: self.stateManager.network, accountPeerId: self.stateManager.accountPeerId).start())
+        let visibleLocalInputActivities = combineLatest(self.localInputActivityManager.allActivities(), ayuSettings(postbox: self.postbox))
+        |> map { activities, settings -> [PeerActivitySpace: [(PeerId, PeerInputActivityRecord)]] in
+            return settings.sendUploadProgress ? activities : [:]
+        }
+        self.managedOperationsDisposable.add(managedLocalTypingActivities(activities: visibleLocalInputActivities, postbox: self.stateManager.postbox, network: self.stateManager.network, accountPeerId: self.stateManager.accountPeerId).start())
         
         let extractedExpr1: [Signal<AccountRunningImportantTasks, NoError>] = [
             managedSynchronizeChatInputStateOperations(postbox: self.postbox, network: self.network) |> map { inputStates in

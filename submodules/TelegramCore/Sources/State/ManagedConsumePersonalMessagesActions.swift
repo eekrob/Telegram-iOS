@@ -252,12 +252,19 @@ func managedReadReactionOrPollVoteActions(postbox: Postbox, network: Network, st
 }
 
 private func synchronizeConsumeMessageContents(transaction: Transaction, postbox: Postbox, network: Network, stateManager: AccountStateManager, id: MessageId) -> Signal<Void, NoError> {
+    let sendReadReceipts = getAyuSettings(transaction: transaction).sendReadReceipts
     if id.peerId.namespace == Namespaces.Peer.CloudUser || id.peerId.namespace == Namespaces.Peer.CloudGroup {
-        return network.request(Api.functions.messages.readMessageContents(id: [id.id]))
-            |> map(Optional.init)
-            |> `catch` { _ -> Signal<Api.messages.AffectedMessages?, NoError> in
-                return .single(nil)
-            }
+        let request: Signal<Api.messages.AffectedMessages?, NoError>
+        if sendReadReceipts {
+            request = network.request(Api.functions.messages.readMessageContents(id: [id.id]))
+                |> map(Optional.init)
+                |> `catch` { _ -> Signal<Api.messages.AffectedMessages?, NoError> in
+                    return .single(nil)
+                }
+        } else {
+            request = .single(nil)
+        }
+        return request
             |> mapToSignal { result -> Signal<Void, NoError> in
                 if let result = result {
                     switch result {
@@ -288,10 +295,17 @@ private func synchronizeConsumeMessageContents(transaction: Transaction, postbox
             }
     } else if id.peerId.namespace == Namespaces.Peer.CloudChannel {
         if let peer = transaction.getPeer(id.peerId), let inputChannel = apiInputChannel(peer) {
-            return network.request(Api.functions.channels.readMessageContents(channel: inputChannel, id: [id.id]))
-                |> `catch` { _ -> Signal<Api.Bool, NoError> in
-                    return .single(.boolFalse)
-                } |> mapToSignal { result -> Signal<Void, NoError> in
+            let request: Signal<Api.Bool, NoError>
+            if sendReadReceipts {
+                request = network.request(Api.functions.channels.readMessageContents(channel: inputChannel, id: [id.id]))
+                    |> `catch` { _ -> Signal<Api.Bool, NoError> in
+                        return .single(.boolFalse)
+                    }
+            } else {
+                request = .single(.boolFalse)
+            }
+            return request
+                |> mapToSignal { result -> Signal<Void, NoError> in
                     return postbox.transaction { transaction -> Void in
                         transaction.setPendingMessageAction(type: .consumeUnseenPersonalMessage, id: id, action: nil)
                         transaction.updateMessage(id, update: { currentMessage in
@@ -321,12 +335,19 @@ private func synchronizeConsumeMessageContents(transaction: Transaction, postbox
 }
 
 private func synchronizeReadMessageReactionsOrPollVotes(transaction: Transaction, postbox: Postbox, network: Network, stateManager: AccountStateManager, id: MessageId) -> Signal<Void, NoError> {
+    let sendReadReceipts = getAyuSettings(transaction: transaction).sendReadReceipts
     if id.peerId.namespace == Namespaces.Peer.CloudUser || id.peerId.namespace == Namespaces.Peer.CloudGroup {
-        return network.request(Api.functions.messages.readMessageContents(id: [id.id]))
-        |> map(Optional.init)
-        |> `catch` { _ -> Signal<Api.messages.AffectedMessages?, NoError> in
-            return .single(nil)
+        let request: Signal<Api.messages.AffectedMessages?, NoError>
+        if sendReadReceipts {
+            request = network.request(Api.functions.messages.readMessageContents(id: [id.id]))
+            |> map(Optional.init)
+            |> `catch` { _ -> Signal<Api.messages.AffectedMessages?, NoError> in
+                return .single(nil)
+            }
+        } else {
+            request = .single(nil)
         }
+        return request
         |> mapToSignal { result -> Signal<Void, NoError> in
             if let result = result {
                 switch result {
@@ -365,10 +386,16 @@ private func synchronizeReadMessageReactionsOrPollVotes(transaction: Transaction
         }
     } else if id.peerId.namespace == Namespaces.Peer.CloudChannel {
         if let peer = transaction.getPeer(id.peerId), let inputChannel = apiInputChannel(peer) {
-            return network.request(Api.functions.channels.readMessageContents(channel: inputChannel, id: [id.id]))
-            |> `catch` { _ -> Signal<Api.Bool, NoError> in
-                return .single(.boolFalse)
+            let request: Signal<Api.Bool, NoError>
+            if sendReadReceipts {
+                request = network.request(Api.functions.channels.readMessageContents(channel: inputChannel, id: [id.id]))
+                |> `catch` { _ -> Signal<Api.Bool, NoError> in
+                    return .single(.boolFalse)
+                }
+            } else {
+                request = .single(.boolFalse)
             }
+            return request
             |> mapToSignal { result -> Signal<Void, NoError> in
                 return postbox.transaction { transaction -> Void in
                     transaction.setPendingMessageAction(type: .readReactionOrPollVote, id: id, action: nil)

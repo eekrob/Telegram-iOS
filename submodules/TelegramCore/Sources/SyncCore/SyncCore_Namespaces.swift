@@ -151,6 +151,7 @@ public struct Namespaces {
         public static let cachedLiveStorySendAsPeers: Int8 = 51
         public static let cachedGiftUpgradesAttributes: Int8 = 52
         public static let cachedCloudAITextStyles: Int8 = 53
+        public static let ayuMessageHistory: Int8 = 54
     }
     
     public struct UnorderedItemList {
@@ -345,6 +346,8 @@ public func applicationSpecificSharedDataKey(_ value: Int32) -> ValueBoxKey {
 }
 
 public struct PreferencesKeys {
+    public static let ayuSettings: ValueBoxKey = applicationSpecificPreferencesKey(100)
+
     public static let globalNotifications: ValueBoxKey = {
         let key = ValueBoxKey(length: 4)
         key.setInt32(0, value: PreferencesKeyValues.globalNotifications.rawValue)

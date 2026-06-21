@@ -143,6 +143,8 @@ extension PeerInfoScreenNode {
             push(dataAndStorageController(context: self.context))
         case .appearance:
             push(themeSettingsController(context: self.context))
+        case .ayuGram:
+            push(ayuSettingsController(context: self.context))
         case .language:
             push(LocalizationListController(context: self.context))
         case .premium:

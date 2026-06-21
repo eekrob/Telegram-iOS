@@ -6,7 +6,14 @@ import MtProtoKit
 
 
 func _internal_markAllChatsAsRead(postbox: Postbox, network: Network, stateManager: AccountStateManager) -> Signal<Void, NoError> {
-    return network.request(Api.functions.messages.getDialogUnreadMarks(flags: 0, parentPeer: nil))
+    return (ayuSettings(postbox: postbox)
+    |> take(1))
+    |> mapToSignal { settings -> Signal<Void, NoError> in
+        if !settings.sendReadReceipts {
+            return .complete()
+        }
+
+        return network.request(Api.functions.messages.getDialogUnreadMarks(flags: 0, parentPeer: nil))
     |> map(Optional.init)
     |> `catch` { _ -> Signal<[Api.DialogPeer]?, NoError> in
         return .single(nil)
@@ -69,5 +76,6 @@ func _internal_markAllChatsAsRead(postbox: Postbox, network: Network, stateManag
             }
             |> then(applyLocally)
         } |> switchToLatest
+        }
     }
 }

@@ -374,14 +374,27 @@ private func pushPeerReadState(network: Network, postbox: Postbox, stateManager:
 }
 
 func synchronizePeerReadState(network: Network, postbox: Postbox, stateManager: AccountStateManager, peerId: PeerId, push: Bool, validate: Bool) -> Signal<Never, PeerReadStateValidationError> {
-    var signal: Signal<Never, PeerReadStateValidationError> = .complete()
-    if push {
-        signal = signal
-        |> then(pushPeerReadState(network: network, postbox: postbox, stateManager: stateManager, peerId: peerId))
+    return (ayuSettings(postbox: postbox)
+    |> take(1)
+    |> castError(PeerReadStateValidationError.self))
+    |> mapToSignal { settings -> Signal<Never, PeerReadStateValidationError> in
+        if push && !settings.sendReadReceipts {
+            return (postbox.transaction { transaction -> Void in
+                transaction.confirmSynchronizedIncomingReadState(peerId)
+            }
+            |> castError(PeerReadStateValidationError.self))
+            |> ignoreValues
+        }
+
+        var signal: Signal<Never, PeerReadStateValidationError> = .complete()
+        if push {
+            signal = signal
+            |> then(pushPeerReadState(network: network, postbox: postbox, stateManager: stateManager, peerId: peerId))
+        }
+        if validate {
+            signal = signal
+            |> then(validatePeerReadState(network: network, postbox: postbox, stateManager: stateManager, peerId: peerId))
+        }
+        return signal
     }
-    if validate {
-        signal = signal
-        |> then(validatePeerReadState(network: network, postbox: postbox, stateManager: stateManager, peerId: peerId))
-    }
-    return signal
 }
