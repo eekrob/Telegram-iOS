@@ -33,15 +33,29 @@ jobs:
 
       - name: Create test IPA configuration
         shell: bash
+        env:
+          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
         run: |
           set -euo pipefail
           python3 - <<'PY'
           import json
+          import os
+          import re
 
           with open("build-system/appstore-configuration.json", "r", encoding="utf-8") as source:
               configuration = json.load(source)
 
-          # Keep Telegram's public API credentials so the test build can log in.
+          api_id = os.environ.get("TELEGRAM_API_ID", "").strip()
+          api_hash = os.environ.get("TELEGRAM_API_HASH", "").strip()
+          if not api_id.isdigit():
+              raise SystemExit("TELEGRAM_API_ID GitHub secret is missing or invalid")
+          if re.fullmatch(r"[0-9a-fA-F]{32}", api_hash) is None:
+              raise SystemExit("TELEGRAM_API_HASH GitHub secret is missing or invalid")
+
+          configuration["api_id"] = api_id
+          configuration["api_hash"] = api_hash
+
           # Disable App Store-only capabilities because this IPA will be re-signed
           # locally with the tester's Apple ID.
           configuration["app_center_id"] = "0"
