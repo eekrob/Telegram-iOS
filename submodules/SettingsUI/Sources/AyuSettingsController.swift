@@ -126,9 +126,8 @@ private enum AyuSettingsEntry: ItemListNodeEntry {
             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: "Saved history", label: "\(count)", labelStyle: .detailText, sectionId: self.section, style: .blocks, disclosureStyle: .arrow, action: {
                 arguments.openHistory()
             })
-        case let .saveDeletedMessages(value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Save deleted messages", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                arguments.update { $0.saveDeletedMessages = value }
+        case .saveDeletedMessages:
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Save deleted messages (temporarily disabled)", value: false, enableInteractiveChanges: false, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in
             })
         case let .saveMessageHistory(value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Save edit history", value: value, sectionId: self.section, style: .blocks, updated: { value in
@@ -151,7 +150,7 @@ private enum AyuSettingsEntry: ItemListNodeEntry {
                 arguments.update { $0.saveForBots = value }
             })
         case .historyFooter:
-            return ItemListTextItem(presentationData: presentationData, text: .plain("Saved revisions will remain local to this device unless AyuSync support is enabled later."), sectionId: self.section)
+            return ItemListTextItem(presentationData: presentationData, text: .plain("Deleted-message capture is temporarily disabled while its crash path is being repaired. Edit revisions remain local to this device."), sectionId: self.section)
         }
     }
 }
