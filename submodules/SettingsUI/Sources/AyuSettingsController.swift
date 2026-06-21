@@ -7,6 +7,13 @@ import SwiftSignalKit
 import TelegramCore
 import TelegramPresentationData
 
+private func ayuLocalized(_ presentationData: ItemListPresentationData, english: String, russian: String) -> String {
+    if presentationData.strings.primaryComponent.languageCode.lowercased().hasPrefix("ru") {
+        return russian
+    }
+    return english
+}
+
 private final class AyuSettingsControllerArguments {
     let update: (@escaping (inout AyuSettings) -> Void) -> Void
     let openHistory: () -> Void
@@ -39,13 +46,15 @@ private enum AyuSettingsEntry: ItemListNodeEntry {
     case saveFormatting(Bool)
     case saveReactions(Bool)
     case saveForBots(Bool)
+    case deletedMessageMark(String)
+    case editedMessageMark(String)
     case historyFooter
 
     var section: ItemListSectionId {
         switch self {
         case .ghostHeader, .ghostMode, .sendReadReceipts, .sendOnlineStatus, .sendUploadProgress, .sendOfflineAfterOnline, .ghostFooter:
             return AyuSettingsSection.ghost.rawValue
-        case .historyHeader, .historyIndex, .saveDeletedMessages, .saveMessageHistory, .saveMedia, .saveFormatting, .saveReactions, .saveForBots, .historyFooter:
+        case .historyHeader, .historyIndex, .saveDeletedMessages, .saveMessageHistory, .saveMedia, .saveFormatting, .saveReactions, .saveForBots, .deletedMessageMark, .editedMessageMark, .historyFooter:
             return AyuSettingsSection.history.rawValue
         }
     }
@@ -83,7 +92,11 @@ private enum AyuSettingsEntry: ItemListNodeEntry {
         case .saveForBots:
             return 14
         case .historyFooter:
+            return 17
+        case .deletedMessageMark:
             return 15
+        case .editedMessageMark:
+            return 16
         }
     }
 
@@ -95,62 +108,71 @@ private enum AyuSettingsEntry: ItemListNodeEntry {
         let arguments = arguments as! AyuSettingsControllerArguments
         switch self {
         case .ghostHeader:
-            return ItemListSectionHeaderItem(presentationData: presentationData, text: "GHOST MODE", sectionId: self.section)
+            return ItemListSectionHeaderItem(presentationData: presentationData, text: ayuLocalized(presentationData, english: "GHOST MODE", russian: "РЕЖИМ ПРИЗРАКА"), sectionId: self.section)
         case let .ghostMode(value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Ghost mode", value: value, sectionId: self.section, style: .blocks, updated: { value in
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: ayuLocalized(presentationData, english: "Ghost mode", russian: "Режим Призрака"), value: value, sectionId: self.section, style: .blocks, updated: { value in
                 arguments.update { settings in
                     settings = settings.withGhostModeEnabled(value)
                 }
             })
         case let .sendReadReceipts(value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Send read receipts", value: value, sectionId: self.section, style: .blocks, updated: { value in
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: ayuLocalized(presentationData, english: "Send read receipts", russian: "Отправлять «прочитано»"), value: value, sectionId: self.section, style: .blocks, updated: { value in
                 arguments.update { $0.sendReadReceipts = value }
             })
         case let .sendOnlineStatus(value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Send online status", value: value, sectionId: self.section, style: .blocks, updated: { value in
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: ayuLocalized(presentationData, english: "Send online status", russian: "Отправлять статус «в сети»"), value: value, sectionId: self.section, style: .blocks, updated: { value in
                 arguments.update { $0.sendOnlineStatus = value }
             })
         case let .sendUploadProgress(value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Send upload progress", value: value, sectionId: self.section, style: .blocks, updated: { value in
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: ayuLocalized(presentationData, english: "Send upload progress", russian: "Отправлять прогресс загрузки"), value: value, sectionId: self.section, style: .blocks, updated: { value in
                 arguments.update { $0.sendUploadProgress = value }
             })
         case let .sendOfflineAfterOnline(value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Send offline after online", value: value, sectionId: self.section, style: .blocks, updated: { value in
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: ayuLocalized(presentationData, english: "Send offline after online", russian: "Отправлять «не в сети» после онлайна"), value: value, sectionId: self.section, style: .blocks, updated: { value in
                 arguments.update { $0.sendOfflineAfterOnline = value }
             })
         case .ghostFooter:
-            return ItemListTextItem(presentationData: presentationData, text: .plain("Ghost mode keeps read state local and suppresses presence, typing, upload progress, and supported read-receipt requests."), sectionId: self.section)
+            return ItemListTextItem(presentationData: presentationData, text: .plain(ayuLocalized(presentationData, english: "Ghost mode keeps read state local and suppresses presence, typing, upload progress, and supported read-receipt requests.", russian: "Режим Призрака сохраняет прочтение локально и скрывает онлайн, набор текста, загрузку файлов и поддерживаемые подтверждения прочтения.")), sectionId: self.section)
         case .historyHeader:
-            return ItemListSectionHeaderItem(presentationData: presentationData, text: "MESSAGE HISTORY", sectionId: self.section)
+            return ItemListSectionHeaderItem(presentationData: presentationData, text: ayuLocalized(presentationData, english: "MESSAGE HISTORY", russian: "ИСТОРИЯ СООБЩЕНИЙ"), sectionId: self.section)
         case let .historyIndex(count):
-            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: "Saved history", label: "\(count)", labelStyle: .detailText, sectionId: self.section, style: .blocks, disclosureStyle: .arrow, action: {
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: ayuLocalized(presentationData, english: "Saved history", russian: "Сохранённая история"), label: "\(count)", labelStyle: .detailText, sectionId: self.section, style: .blocks, disclosureStyle: .arrow, action: {
                 arguments.openHistory()
             })
-        case .saveDeletedMessages:
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Save deleted messages (temporarily disabled)", value: false, enableInteractiveChanges: false, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in
+        case let .saveDeletedMessages(value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: ayuLocalized(presentationData, english: "Save deleted messages", russian: "Сохранять удалённые сообщения"), value: value, sectionId: self.section, style: .blocks, updated: { value in
+                arguments.update { $0.saveDeletedMessages = value }
             })
         case let .saveMessageHistory(value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Save edit history", value: value, sectionId: self.section, style: .blocks, updated: { value in
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: ayuLocalized(presentationData, english: "Save edit history", russian: "Сохранять историю изменений"), value: value, sectionId: self.section, style: .blocks, updated: { value in
                 arguments.update { $0.saveMessageHistory = value }
             })
         case let .saveMedia(value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Save media", value: value, sectionId: self.section, style: .blocks, updated: { value in
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: ayuLocalized(presentationData, english: "Save media", russian: "Сохранять медиа"), value: value, sectionId: self.section, style: .blocks, updated: { value in
                 arguments.update { $0.saveMedia = value }
             })
         case let .saveFormatting(value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Save formatting", value: value, sectionId: self.section, style: .blocks, updated: { value in
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: ayuLocalized(presentationData, english: "Save formatting", russian: "Сохранять форматирование"), value: value, sectionId: self.section, style: .blocks, updated: { value in
                 arguments.update { $0.saveFormatting = value }
             })
         case let .saveReactions(value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Save reactions", value: value, sectionId: self.section, style: .blocks, updated: { value in
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: ayuLocalized(presentationData, english: "Save reactions", russian: "Сохранять реакции"), value: value, sectionId: self.section, style: .blocks, updated: { value in
                 arguments.update { $0.saveReactions = value }
             })
         case let .saveForBots(value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Save messages from bots", value: value, sectionId: self.section, style: .blocks, updated: { value in
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: ayuLocalized(presentationData, english: "Save messages from bots", russian: "Сохранять сообщения ботов"), value: value, sectionId: self.section, style: .blocks, updated: { value in
                 arguments.update { $0.saveForBots = value }
             })
+        case let .deletedMessageMark(value):
+            return ItemListSingleLineInputItem(presentationData: presentationData, systemStyle: .glass, title: NSAttributedString(), text: value, placeholder: ayuLocalized(presentationData, english: "Deleted message mark", russian: "Пометка удалённого сообщения"), type: .regular(capitalization: false, autocorrection: false), sectionId: self.section, textUpdated: { value in
+                arguments.update { $0.deletedMessageMark = value }
+            }, action: {})
+        case let .editedMessageMark(value):
+            return ItemListSingleLineInputItem(presentationData: presentationData, systemStyle: .glass, title: NSAttributedString(), text: value, placeholder: ayuLocalized(presentationData, english: "Edited message mark", russian: "Пометка изменённого сообщения"), type: .regular(capitalization: false, autocorrection: false), sectionId: self.section, textUpdated: { value in
+                arguments.update { $0.editedMessageMark = value }
+            }, action: {})
         case .historyFooter:
-            return ItemListTextItem(presentationData: presentationData, text: .plain("Deleted-message capture is temporarily disabled while its crash path is being repaired. Edit revisions remain local to this device."), sectionId: self.section)
+            return ItemListTextItem(presentationData: presentationData, text: .plain(ayuLocalized(presentationData, english: "Saved revisions remain local to this device.", russian: "Сохранённые версии остаются только на этом устройстве.")), sectionId: self.section)
         }
     }
 }
@@ -172,6 +194,8 @@ private func ayuSettingsEntries(settings: AyuSettings, historyCount: Int) -> [Ay
         .saveFormatting(settings.saveFormatting),
         .saveReactions(settings.saveReactions),
         .saveForBots(settings.saveForBots),
+        .deletedMessageMark(settings.deletedMessageMark),
+        .editedMessageMark(settings.editedMessageMark),
         .historyFooter
     ]
 }

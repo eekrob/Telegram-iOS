@@ -4462,8 +4462,17 @@ func replayFinalState(
                     }
                 }
             case let .DeleteMessagesWithGlobalIds(ids):
+                var retainedGlobalIds = Set<Int32>()
+                for messageId in transaction.messageIdsForGlobalIds(ids) {
+                    if let message = transaction.getMessage(messageId) {
+                        if retainAyuDeletedMessage(transaction: transaction, message: message), let globallyUniqueId = message.globallyUniqueId {
+                            retainedGlobalIds.insert(Int32(clamping: globallyUniqueId))
+                        }
+                    }
+                }
+                let idsToDelete = ids.filter { !retainedGlobalIds.contains($0) }
                 var resourceIds: [MediaResourceId] = []
-                transaction.deleteMessagesWithGlobalIds(ids, forEachMedia: { media in
+                transaction.deleteMessagesWithGlobalIds(idsToDelete, forEachMedia: { media in
                     addMessageMediaResourceIdsToRemove(media: media, resourceIds: &resourceIds)
                 })
                 if !resourceIds.isEmpty {
@@ -4471,7 +4480,17 @@ func replayFinalState(
                 }
                 deletedMessageIds.append(contentsOf: ids.map { .global($0) })
             case let .DeleteMessages(ids):
-                _internal_deleteMessages(transaction: transaction, mediaBox: mediaBox, ids: ids, manualAddMessageThreadStatsDifference: { id, add, remove in
+                var idsToDelete: [MessageId] = []
+                for id in ids {
+                    if let message = transaction.getMessage(id) {
+                        if !retainAyuDeletedMessage(transaction: transaction, message: message) {
+                            idsToDelete.append(id)
+                        }
+                    } else {
+                        idsToDelete.append(id)
+                    }
+                }
+                _internal_deleteMessages(transaction: transaction, mediaBox: mediaBox, ids: idsToDelete, manualAddMessageThreadStatsDifference: { id, add, remove in
                     addMessageThreadStatsDifference(threadKey: id, remove: remove, addedMessagePeer: nil, addedMessageId: nil, isOutgoing: false)
                 })
                 deletedMessageIds.append(contentsOf: ids.map { .messageId($0) })

@@ -7,6 +7,13 @@ import SwiftSignalKit
 import TelegramCore
 import TelegramPresentationData
 
+private func ayuHistoryLocalized(_ presentationData: ItemListPresentationData, english: String, russian: String) -> String {
+    if presentationData.strings.primaryComponent.languageCode.lowercased().hasPrefix("ru") {
+        return russian
+    }
+    return english
+}
+
 private final class AyuHistoryListArguments {
     let open: (AyuMessageHistoryReference) -> Void
 
@@ -40,9 +47,11 @@ private enum AyuHistoryListEntry: ItemListNodeEntry {
         let arguments = arguments as! AyuHistoryListArguments
         switch self {
         case .empty:
-            return ItemListTextItem(presentationData: presentationData, text: .plain("Edited and deleted message snapshots will appear here."), sectionId: self.section)
+            return ItemListTextItem(presentationData: presentationData, text: .plain(ayuHistoryLocalized(presentationData, english: "Edited and deleted message snapshots will appear here.", russian: "Здесь появятся сохранённые версии изменённых и удалённых сообщений.")), sectionId: self.section)
         case let .message(_, reference):
-            let title = reference.isDeleted ? "Deleted message" : "Edited message"
+            let title = reference.isDeleted
+                ? ayuHistoryLocalized(presentationData, english: "Deleted message", russian: "Удалённое сообщение")
+                : ayuHistoryLocalized(presentationData, english: "Edited message", russian: "Изменённое сообщение")
             let text = reference.lastText.isEmpty ? "\(reference.id)" : reference.lastText
             return ItemListDisclosureItem(
                 presentationData: presentationData,
@@ -94,21 +103,24 @@ private enum AyuHistoryDetailEntry: ItemListNodeEntry {
     func item(presentationData: ItemListPresentationData, arguments: Any) -> ListViewItem {
         switch self {
         case .empty:
-            return ItemListTextItem(presentationData: presentationData, text: .plain("No saved revisions."), sectionId: self.section)
+            return ItemListTextItem(presentationData: presentationData, text: .plain(ayuHistoryLocalized(presentationData, english: "No saved revisions.", russian: "Сохранённых версий нет.")), sectionId: self.section)
         case let .revision(_, revision):
-            let event = revision.kind == .deleted ? "Deleted" : "Edited"
+            let event = revision.kind == .deleted
+                ? ayuHistoryLocalized(presentationData, english: "Deleted", russian: "Удалено")
+                : ayuHistoryLocalized(presentationData, english: "Edited", russian: "Изменено")
+            let markedEvent = revision.displayMark.isEmpty ? event : "\(event) \(revision.displayMark)"
             let date = DateFormatter.localizedString(from: Date(timeIntervalSince1970: TimeInterval(revision.capturedAt)), dateStyle: .short, timeStyle: .short)
             var detail = revision.text
             if detail.isEmpty && !revision.mediaKinds.isEmpty {
                 detail = revision.mediaKinds.joined(separator: ", ")
             }
             if detail.isEmpty {
-                detail = "Empty message"
+                detail = ayuHistoryLocalized(presentationData, english: "Empty message", russian: "Пустое сообщение")
             }
             return ItemListDisclosureItem(
                 presentationData: presentationData,
                 systemStyle: .glass,
-                title: "\(event) - \(date)",
+                title: "\(markedEvent) - \(date)",
                 label: detail,
                 labelStyle: .multilineDetailText,
                 sectionId: self.section,
@@ -138,7 +150,7 @@ private func ayuMessageHistoryDetailController(context: AccountContext, referenc
     |> map { presentationData, history -> (ItemListControllerState, (ItemListNodeState, Any)) in
         let controllerState = ItemListControllerState(
             presentationData: ItemListPresentationData(presentationData),
-            title: .text("Message History"),
+            title: .text(ayuHistoryLocalized(ItemListPresentationData(presentationData), english: "Message History", russian: "История сообщения")),
             leftNavigationButton: nil,
             rightNavigationButton: nil,
             backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back)
@@ -167,7 +179,7 @@ public func ayuMessageHistoryController(context: AccountContext) -> ViewControll
     |> map { presentationData, references -> (ItemListControllerState, (ItemListNodeState, Any)) in
         let controllerState = ItemListControllerState(
             presentationData: ItemListPresentationData(presentationData),
-            title: .text("Saved History"),
+            title: .text(ayuHistoryLocalized(ItemListPresentationData(presentationData), english: "Saved History", russian: "Сохранённая история")),
             leftNavigationButton: nil,
             rightNavigationButton: nil,
             backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back)

@@ -2,7 +2,7 @@ import Foundation
 import Postbox
 import SwiftSignalKit
 
-public enum AyuMessageRevisionKind: Int32, Codable, Equatable {
+public enum AyuMessageRevisionKind: Int32, Equatable {
     case edited = 0
     case deleted = 1
 }
@@ -16,6 +16,75 @@ public struct AyuMessageRevision: Codable, Equatable {
     public let text: String
     public let mediaKinds: [String]
     public let isIncoming: Bool
+    public let displayMark: String
+
+    private enum CodingKeys: String, CodingKey {
+        case kind
+        case capturedAt
+        case messageTimestamp
+        case authorId
+        case threadId
+        case text
+        case mediaKinds
+        case isIncoming
+        case displayMark
+    }
+
+    public init(
+        kind: AyuMessageRevisionKind,
+        capturedAt: Int32,
+        messageTimestamp: Int32,
+        authorId: Int64?,
+        threadId: Int64?,
+        text: String,
+        mediaKinds: [String],
+        isIncoming: Bool,
+        displayMark: String
+    ) {
+        self.kind = kind
+        self.capturedAt = capturedAt
+        self.messageTimestamp = messageTimestamp
+        self.authorId = authorId
+        self.threadId = threadId
+        self.text = text
+        self.mediaKinds = mediaKinds
+        self.isIncoming = isIncoming
+        self.displayMark = displayMark
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let rawKind = try container.decode(Int32.self, forKey: .kind)
+        guard let kind = AyuMessageRevisionKind(rawValue: rawKind) else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .kind,
+                in: container,
+                debugDescription: "Unknown Ayu message revision kind: \(rawKind)"
+            )
+        }
+        self.kind = kind
+        self.capturedAt = try container.decode(Int32.self, forKey: .capturedAt)
+        self.messageTimestamp = try container.decode(Int32.self, forKey: .messageTimestamp)
+        self.authorId = try container.decodeIfPresent(Int64.self, forKey: .authorId)
+        self.threadId = try container.decodeIfPresent(Int64.self, forKey: .threadId)
+        self.text = try container.decode(String.self, forKey: .text)
+        self.mediaKinds = try container.decode([String].self, forKey: .mediaKinds)
+        self.isIncoming = try container.decode(Bool.self, forKey: .isIncoming)
+        self.displayMark = try container.decodeIfPresent(String.self, forKey: .displayMark) ?? ""
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(self.kind.rawValue, forKey: .kind)
+        try container.encode(self.capturedAt, forKey: .capturedAt)
+        try container.encode(self.messageTimestamp, forKey: .messageTimestamp)
+        try container.encodeIfPresent(self.authorId, forKey: .authorId)
+        try container.encodeIfPresent(self.threadId, forKey: .threadId)
+        try container.encode(self.text, forKey: .text)
+        try container.encode(self.mediaKinds, forKey: .mediaKinds)
+        try container.encode(self.isIncoming, forKey: .isIncoming)
+        try container.encode(self.displayMark, forKey: .displayMark)
+    }
 }
 
 public struct AyuMessageHistory: Codable, Equatable {
@@ -111,7 +180,8 @@ func storeAyuMessageRevision(transaction: Transaction, message: Message, kind: A
         threadId: message.threadId,
         text: message.text,
         mediaKinds: ayuMediaKinds(message.media),
-        isIncoming: message.flags.contains(.Incoming)
+        isIncoming: message.flags.contains(.Incoming),
+        displayMark: kind == .deleted ? settings.deletedMessageMark : settings.editedMessageMark
     )
 
     if let last = history.revisions.last {
@@ -151,6 +221,49 @@ func storeAyuMessageRevision(transaction: Transaction, message: Message, kind: A
     if let entry = CodableEntry(index) {
         transaction.putItemCacheEntry(id: ayuMessageHistoryIndexEntryId, entry: entry)
     }
+}
+
+/// Keeps a server-deleted message in the local Postbox and appends AyuGram's
+/// configured deletion marker. Returns `true` when normal deletion should be
+/// skipped for this message.
+func retainAyuDeletedMessage(transaction: Transaction, message: Message) -> Bool {
+    let settings = getAyuSettings(transaction: transaction)
+    if !settings.saveDeletedMessages {
+        return false
+    }
+    if !settings.saveForBots, let author = message.author as? TelegramUser, author.botInfo != nil {
+        return false
+    }
+
+    let configuredMark = settings.deletedMessageMark.trimmingCharacters(in: .whitespacesAndNewlines)
+    let mark = configuredMark.isEmpty ? "🧹" : configuredMark
+    let markedSuffix = "\n\(mark)"
+    if message.text == mark || message.text.hasSuffix(markedSuffix) {
+        return true
+    }
+
+    storeAyuMessageRevision(transaction: transaction, message: message, kind: .deleted)
+    transaction.updateMessage(message.id, update: { currentMessage in
+        let updatedText = currentMessage.text.isEmpty ? mark : currentMessage.text + markedSuffix
+        return .update(StoreMessage(
+            id: currentMessage.id,
+            customStableId: nil,
+            globallyUniqueId: currentMessage.globallyUniqueId,
+            groupingKey: currentMessage.groupingKey,
+            threadId: currentMessage.threadId,
+            timestamp: currentMessage.timestamp,
+            flags: StoreMessageFlags(currentMessage.flags),
+            tags: currentMessage.tags,
+            globalTags: currentMessage.globalTags,
+            localTags: currentMessage.localTags,
+            forwardInfo: currentMessage.forwardInfo.flatMap(StoreMessageForwardInfo.init),
+            authorId: currentMessage.author?.id,
+            text: updatedText,
+            attributes: currentMessage.attributes,
+            media: currentMessage.media
+        ))
+    })
+    return true
 }
 
 public func ayuMessageHistory(postbox: Postbox, messageId: MessageId) -> Signal<AyuMessageHistory, NoError> {

@@ -333,9 +333,9 @@ private class ReplyThreadHistoryContextImpl {
 
         let account = self.account
         
-        let _ = (self.account.postbox.transaction { transaction -> (Api.InputPeer?, Api.InputPeer?, MessageId?, Int?) in
+        let _ = (self.account.postbox.transaction { transaction -> (Api.InputPeer?, Api.InputPeer?, MessageId?, Int?, Bool) in
             guard let peer = transaction.getPeer(peerId) else {
-                return (nil, nil, nil, nil)
+                return (nil, nil, nil, nil, false)
             }
             
             var markMainAsRead = false
@@ -434,9 +434,9 @@ private class ReplyThreadHistoryContextImpl {
             let readCount = transaction.getThreadMessageCount(peerId: peerId, threadId: threadId, namespace: Namespaces.Message.Cloud, fromIdExclusive: fromIdExclusive, toIndex: toIndex)
             let topMessageId = transaction.getMessagesWithThreadId(peerId: peerId, namespace: Namespaces.Message.Cloud, threadId: threadId, from: MessageIndex.upperBound(peerId: peerId, namespace: Namespaces.Message.Cloud), includeFrom: false, to: MessageIndex.lowerBound(peerId: peerId, namespace: Namespaces.Message.Cloud), limit: 1).first?.id
             
-            return (inputPeer, subPeerId, topMessageId, readCount)
+            return (inputPeer, subPeerId, topMessageId, readCount, getAyuSettings(transaction: transaction).sendReadReceipts)
         }
-        |> deliverOnMainQueue).start(next: { [weak self] inputPeer, subPeerId, topMessageId, readCount in
+        |> deliverOnMainQueue).start(next: { [weak self] inputPeer, subPeerId, topMessageId, readCount, shouldSendReadReceipts in
             guard let strongSelf = self else {
                 return
             }
@@ -474,6 +474,10 @@ private class ReplyThreadHistoryContextImpl {
                         revalidate = true
                     }
                 }
+            }
+
+            if !shouldSendReadReceipts {
+                return
             }
 
             if let subPeerId {

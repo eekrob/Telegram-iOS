@@ -4,6 +4,36 @@ import TelegramPresentationData
 import TelegramUIPreferences
 //import PhoneNumberFormat
 
+private let ayuGramTeamUserIds: Set<Int64> = [
+    963080346, 1282540315, 1374434073, 388099852, 1972014627,
+    168769611, 480000401, 5307590670, 639891381, 1773117711,
+    5330087923, 666154369, 139303278, 778327202, 963494570,
+    238292700, 1795176335
+]
+
+private let ayuGramOfficialChannelIds: Set<Int64> = [
+    1905581924, 1794457129, 1434550607
+]
+
+private extension EnginePeer {
+    var hasAyuGramBadge: Bool {
+        switch self {
+        case let .user(user):
+            return ayuGramTeamUserIds.contains(user.id.id._internalGetInt64Value())
+        case let .legacyGroup(group):
+            return ayuGramOfficialChannelIds.contains(group.id.id._internalGetInt64Value())
+        case let .channel(channel):
+            return ayuGramOfficialChannelIds.contains(channel.id.id._internalGetInt64Value())
+        case .secretChat:
+            return false
+        }
+    }
+
+    func withAyuGramBadge(_ title: String) -> String {
+        return self.hasAyuGramBadge && !title.isEmpty ? title + " ✦" : title
+    }
+}
+
 public extension EnginePeer {
     var compactDisplayTitle: String {
         switch self {
@@ -27,36 +57,37 @@ public extension EnginePeer {
     }
 
     func displayTitle(strings: PresentationStrings, displayOrder: PresentationPersonNameOrder) -> String {
+        let title: String
         switch self {
         case let .user(user):
             if user.id.isReplies {
-                return strings.DialogList_Replies
-            }
-            if let firstName = user.firstName, !firstName.isEmpty {
+                title = strings.DialogList_Replies
+            } else if let firstName = user.firstName, !firstName.isEmpty {
                 if let lastName = user.lastName, !lastName.isEmpty {
                     switch displayOrder {
                     case .firstLast:
-                        return "\(firstName) \(lastName)"
+                        title = "\(firstName) \(lastName)"
                     case .lastFirst:
-                        return "\(lastName) \(firstName)"
+                        title = "\(lastName) \(firstName)"
                     }
                 } else {
-                    return firstName
+                    title = firstName
                 }
             } else if let lastName = user.lastName, !lastName.isEmpty {
-                return lastName
+                title = lastName
             } else if let _ = user.phone {
-                return "" //formatPhoneNumber("+\(phone)")
+                title = "" //formatPhoneNumber("+\(phone)")
             } else {
-                return strings.User_DeletedAccount
+                title = strings.User_DeletedAccount
             }
         case let .legacyGroup(group):
-            return group.title
+            title = group.title
         case let .channel(channel):
-            return channel.title
+            title = channel.title
         case .secretChat:
-            return ""
+            title = ""
         }
+        return self.withAyuGramBadge(title)
     }
 }
 
