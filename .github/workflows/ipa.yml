@@ -1,0 +1,89 @@
+name: AyuGram iOS test IPA
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ayugram-ios-ipa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build unsigned device IPA
+    runs-on: macos-26
+    timeout-minutes: 180
+
+    steps:
+      - name: Check out sources and submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Select pinned Xcode
+        shell: bash
+        run: |
+          set -euo pipefail
+          XCODE_VERSION="$(python3 -c 'import json; print(json.load(open("versions.json"))["xcode"])')"
+          sudo xcode-select -s "/Applications/Xcode_${XCODE_VERSION}.app/Contents/Developer"
+          xcodebuild -version
+
+      - name: Create test IPA configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+
+          with open("build-system/appstore-configuration.json", "r", encoding="utf-8") as source:
+              configuration = json.load(source)
+
+          # Keep Telegram's public API credentials so the test build can log in.
+          # Disable App Store-only capabilities because this IPA will be re-signed
+          # locally with the tester's Apple ID.
+          configuration["app_center_id"] = "0"
+          configuration["is_internal_build"] = "false"
+          configuration["is_appstore_build"] = "false"
+          configuration["appstore_id"] = "0"
+          configuration["premium_iap_product_id"] = ""
+          configuration["enable_siri"] = False
+          configuration["enable_icloud"] = False
+
+          with open("build-system/ci-ipa-configuration.json", "w", encoding="utf-8") as output:
+              json.dump(configuration, output, indent=2)
+              output.write("\n")
+          PY
+
+      - name: Import repository test certificates
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 build-system/Make/ImportCertificates.py \
+            --path build-system/fake-codesigning/certs
+
+      - name: Build device IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          BUILD_NUMBER="$((20000 + GITHUB_RUN_NUMBER))"
+          python3 -u build-system/Make/Make.py \
+            --bazelUserRoot="$RUNNER_TEMP/bazel-root" \
+            --cacheDir="$RUNNER_TEMP/telegram-bazel-cache" \
+            build \
+            --configurationPath=build-system/ci-ipa-configuration.json \
+            --codesigningInformationPath=build-system/fake-codesigning \
+            --configuration=debug_arm64 \
+            --outputBuildArtifactsPath="$RUNNER_TEMP/ayugram-artifacts" \
+            --buildNumber="$BUILD_NUMBER"
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: AyuGram-iOS-${{ github.run_number }}
+          path: ${{ runner.temp }}/ayugram-artifacts/Telegram.ipa
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 3
