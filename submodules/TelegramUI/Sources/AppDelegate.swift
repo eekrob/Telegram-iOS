@@ -290,7 +290,9 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         let appGroupName = "group.\(baseAppBundleId)"
 
         let configuration = URLSessionConfiguration.background(withIdentifier: identifier)
-        configuration.sharedContainerIdentifier = appGroupName
+        if FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupName) != nil {
+            configuration.sharedContainerIdentifier = appGroupName
+        }
         configuration.isDiscretionary = false
         let session = URLSession(configuration: configuration, delegate: self, delegateQueue: .main)
         self.urlSessions.append(session)
@@ -641,9 +643,32 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             isICloudEnabled: buildConfig.isICloudEnabled
         )
         
-        guard let appGroupUrl = maybeAppGroupUrl else {
-            self.mainWindow?.presentNative(UIAlertController(title: nil, message: "Error 2", preferredStyle: .alert))
-            return true
+        let appGroupUrl: URL
+        if let maybeAppGroupUrl {
+            appGroupUrl = maybeAppGroupUrl
+        } else {
+            // Free Apple ID sideloading cannot grant Telegram's App Group
+            // entitlement. Keep the main app functional by storing its data in
+            // the application sandbox. Extensions remain unavailable in this
+            // mode because they cannot share this fallback container.
+            let fallbackUrl = FileManager.default.urls(
+                for: .applicationSupportDirectory,
+                in: .userDomainMask
+            )[0].appendingPathComponent("Telegram", isDirectory: true)
+            do {
+                try FileManager.default.createDirectory(
+                    at: fallbackUrl,
+                    withIntermediateDirectories: true
+                )
+            } catch {
+                self.mainWindow?.presentNative(UIAlertController(
+                    title: nil,
+                    message: "Unable to create the application data directory.",
+                    preferredStyle: .alert
+                ))
+                return true
+            }
+            appGroupUrl = fallbackUrl
         }
         
         var isDebugConfiguration = false

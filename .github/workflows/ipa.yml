@@ -79,6 +79,22 @@ jobs:
             --outputBuildArtifactsPath="$RUNNER_TEMP/ayugram-artifacts" \
             --buildNumber="$BUILD_NUMBER"
 
+      - name: Remove extensions unsupported by free sideloading
+        shell: bash
+        run: |
+          set -euo pipefail
+          IPA_PATH="$RUNNER_TEMP/ayugram-artifacts/Telegram.ipa"
+          REPACK_DIR="$RUNNER_TEMP/ayugram-repack"
+          rm -rf "$REPACK_DIR"
+          mkdir -p "$REPACK_DIR"
+          ditto -x -k "$IPA_PATH" "$REPACK_DIR"
+          rm -rf "$REPACK_DIR/Payload/Telegram.app/PlugIns"
+          rm -f "$IPA_PATH"
+          (
+            cd "$REPACK_DIR"
+            ditto -c -k --sequesterRsrc --keepParent Payload "$IPA_PATH"
+          )
+
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
