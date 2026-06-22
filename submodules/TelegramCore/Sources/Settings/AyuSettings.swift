@@ -8,6 +8,7 @@ public struct AyuSettings: Codable, Equatable {
     public var sendOnlineStatus: Bool
     public var sendUploadProgress: Bool
     public var sendOfflineAfterOnline: Bool
+    public var readStoriesStealthily: Bool
 
     public var markReadAfterSend: Bool
     public var useScheduledMessages: Bool
@@ -27,6 +28,7 @@ public struct AyuSettings: Codable, Equatable {
         sendOnlineStatus: true,
         sendUploadProgress: true,
         sendOfflineAfterOnline: false,
+        readStoriesStealthily: false,
         markReadAfterSend: true,
         useScheduledMessages: false,
         saveDeletedMessages: true,
@@ -44,6 +46,7 @@ public struct AyuSettings: Codable, Equatable {
             && !self.sendOnlineStatus
             && !self.sendUploadProgress
             && self.sendOfflineAfterOnline
+            && self.readStoriesStealthily
     }
 
     public init(
@@ -51,6 +54,7 @@ public struct AyuSettings: Codable, Equatable {
         sendOnlineStatus: Bool,
         sendUploadProgress: Bool,
         sendOfflineAfterOnline: Bool,
+        readStoriesStealthily: Bool,
         markReadAfterSend: Bool,
         useScheduledMessages: Bool,
         saveDeletedMessages: Bool,
@@ -66,6 +70,7 @@ public struct AyuSettings: Codable, Equatable {
         self.sendOnlineStatus = sendOnlineStatus
         self.sendUploadProgress = sendUploadProgress
         self.sendOfflineAfterOnline = sendOfflineAfterOnline
+        self.readStoriesStealthily = readStoriesStealthily
         self.markReadAfterSend = markReadAfterSend
         self.useScheduledMessages = useScheduledMessages
         self.saveDeletedMessages = saveDeletedMessages
@@ -86,6 +91,7 @@ public struct AyuSettings: Codable, Equatable {
         self.sendOnlineStatus = try container.decodeIfPresent(Bool.self, forKey: "sendOnlineStatus") ?? defaults.sendOnlineStatus
         self.sendUploadProgress = try container.decodeIfPresent(Bool.self, forKey: "sendUploadProgress") ?? defaults.sendUploadProgress
         self.sendOfflineAfterOnline = try container.decodeIfPresent(Bool.self, forKey: "sendOfflineAfterOnline") ?? defaults.sendOfflineAfterOnline
+        self.readStoriesStealthily = try container.decodeIfPresent(Bool.self, forKey: "readStoriesStealthily") ?? defaults.readStoriesStealthily
         self.markReadAfterSend = try container.decodeIfPresent(Bool.self, forKey: "markReadAfterSend") ?? defaults.markReadAfterSend
         self.useScheduledMessages = try container.decodeIfPresent(Bool.self, forKey: "useScheduledMessages") ?? defaults.useScheduledMessages
         self.saveDeletedMessages = try container.decodeIfPresent(Bool.self, forKey: "saveDeletedMessages") ?? defaults.saveDeletedMessages
@@ -104,6 +110,7 @@ public struct AyuSettings: Codable, Equatable {
         result.sendOnlineStatus = !enabled
         result.sendUploadProgress = !enabled
         result.sendOfflineAfterOnline = enabled
+        result.readStoriesStealthily = enabled
         return result
     }
 }

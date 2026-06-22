@@ -22,8 +22,8 @@
             }
           ],
           "glass" : true,
-          "image-name" : "Plane.svg",
-          "name" : "Plane",
+          "image-name" : "AyuGram.png",
+          "name" : "AyuGram",
           "position-specializations" : [
             {
               "idiom" : "watchOS",

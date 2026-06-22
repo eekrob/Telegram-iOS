@@ -36,6 +36,7 @@ private enum AyuSettingsEntry: ItemListNodeEntry {
     case sendOnlineStatus(Bool)
     case sendUploadProgress(Bool)
     case sendOfflineAfterOnline(Bool)
+    case readStoriesStealthily(Bool)
     case ghostFooter
 
     case historyHeader
@@ -52,7 +53,7 @@ private enum AyuSettingsEntry: ItemListNodeEntry {
 
     var section: ItemListSectionId {
         switch self {
-        case .ghostHeader, .ghostMode, .sendReadReceipts, .sendOnlineStatus, .sendUploadProgress, .sendOfflineAfterOnline, .ghostFooter:
+        case .ghostHeader, .ghostMode, .sendReadReceipts, .sendOnlineStatus, .sendUploadProgress, .sendOfflineAfterOnline, .readStoriesStealthily, .ghostFooter:
             return AyuSettingsSection.ghost.rawValue
         case .historyHeader, .historyIndex, .saveDeletedMessages, .saveMessageHistory, .saveMedia, .saveFormatting, .saveReactions, .saveForBots, .deletedMessageMark, .editedMessageMark, .historyFooter:
             return AyuSettingsSection.history.rawValue
@@ -73,30 +74,32 @@ private enum AyuSettingsEntry: ItemListNodeEntry {
             return 4
         case .sendOfflineAfterOnline:
             return 5
-        case .ghostFooter:
+        case .readStoriesStealthily:
             return 6
-        case .historyHeader:
+        case .ghostFooter:
             return 7
-        case .historyIndex:
+        case .historyHeader:
             return 8
-        case .saveDeletedMessages:
+        case .historyIndex:
             return 9
-        case .saveMessageHistory:
+        case .saveDeletedMessages:
             return 10
-        case .saveMedia:
+        case .saveMessageHistory:
             return 11
-        case .saveFormatting:
+        case .saveMedia:
             return 12
-        case .saveReactions:
+        case .saveFormatting:
             return 13
-        case .saveForBots:
+        case .saveReactions:
             return 14
-        case .historyFooter:
-            return 17
-        case .deletedMessageMark:
+        case .saveForBots:
             return 15
-        case .editedMessageMark:
+        case .deletedMessageMark:
             return 16
+        case .editedMessageMark:
+            return 17
+        case .historyFooter:
+            return 18
         }
     }
 
@@ -131,8 +134,12 @@ private enum AyuSettingsEntry: ItemListNodeEntry {
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: ayuLocalized(presentationData, english: "Send offline after online", russian: "Отправлять «не в сети» после онлайна"), value: value, sectionId: self.section, style: .blocks, updated: { value in
                 arguments.update { $0.sendOfflineAfterOnline = value }
             })
+        case let .readStoriesStealthily(value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: ayuLocalized(presentationData, english: "View stories stealthily", russian: "Прочитывать истории скрытно"), value: value, sectionId: self.section, style: .blocks, updated: { value in
+                arguments.update { $0.readStoriesStealthily = value }
+            })
         case .ghostFooter:
-            return ItemListTextItem(presentationData: presentationData, text: .plain(ayuLocalized(presentationData, english: "Ghost mode keeps read state local and suppresses presence, typing, upload progress, and supported read-receipt requests.", russian: "Режим Призрака сохраняет прочтение локально и скрывает онлайн, набор текста, загрузку файлов и поддерживаемые подтверждения прочтения.")), sectionId: self.section)
+            return ItemListTextItem(presentationData: presentationData, text: .plain(ayuLocalized(presentationData, english: "Ghost mode keeps read state local and suppresses presence, typing, upload progress, story views, and supported read-receipt requests.", russian: "Режим Призрака сохраняет прочтение локально и скрывает онлайн, набор текста, загрузку файлов, просмотры историй и поддерживаемые подтверждения прочтения.")), sectionId: self.section)
         case .historyHeader:
             return ItemListSectionHeaderItem(presentationData: presentationData, text: ayuLocalized(presentationData, english: "MESSAGE HISTORY", russian: "ИСТОРИЯ СООБЩЕНИЙ"), sectionId: self.section)
         case let .historyIndex(count):
@@ -185,6 +192,7 @@ private func ayuSettingsEntries(settings: AyuSettings, historyCount: Int) -> [Ay
         .sendOnlineStatus(settings.sendOnlineStatus),
         .sendUploadProgress(settings.sendUploadProgress),
         .sendOfflineAfterOnline(settings.sendOfflineAfterOnline),
+        .readStoriesStealthily(settings.readStoriesStealthily),
         .ghostFooter,
         .historyHeader,
         .historyIndex(historyCount),

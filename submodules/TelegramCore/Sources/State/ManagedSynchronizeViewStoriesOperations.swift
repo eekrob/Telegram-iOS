@@ -122,11 +122,19 @@ private func pushStoriesAreSeen(postbox: Postbox, network: Network, stateManager
     guard let inputPeer = apiInputPeer(peer) else {
         return .complete()
     }
-    return network.request(Api.functions.stories.readStories(peer: inputPeer, maxId: operation.storyId))
-    |> `catch` { _ -> Signal<[Int32], NoError> in
-        return .single([])
+    return postbox.transaction { transaction -> Bool in
+        return getAyuSettings(transaction: transaction).readStoriesStealthily
     }
-    |> map { _ -> Void in
-        return Void()
+    |> mapToSignal { readStoriesStealthily -> Signal<Void, NoError> in
+        if readStoriesStealthily {
+            return .single(Void())
+        }
+        return network.request(Api.functions.stories.readStories(peer: inputPeer, maxId: operation.storyId))
+        |> `catch` { _ -> Signal<[Int32], NoError> in
+            return .single([])
+        }
+        |> map { _ -> Void in
+            return Void()
+        }
     }
 }

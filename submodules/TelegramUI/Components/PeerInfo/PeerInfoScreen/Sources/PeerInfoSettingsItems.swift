@@ -147,6 +147,9 @@ func settingsItems(data: PeerInfoScreenData?, context: AccountContext, presentat
             }))
         }
         
+        items[.myProfile]!.append(PeerInfoScreenDisclosureItem(id: 1, text: "AyuGram", icon: PresentationResourcesSettings.security, action: {
+            interaction.openSettings(.ayuGram)
+        }))
         items[.myProfile]!.append(PeerInfoScreenDisclosureItem(id: 0, text: presentationData.strings.Settings_MyProfile, icon: PresentationResourcesSettings.myProfile, action: {
             interaction.openSettings(.profile)
         }))
@@ -272,9 +275,6 @@ func settingsItems(data: PeerInfoScreenData?, context: AccountContext, presentat
             }))
         }
     }
-    items[.payment]!.append(PeerInfoScreenDisclosureItem(id: 106, text: "AyuGram", icon: PresentationResourcesSettings.security, action: {
-        interaction.openSettings(.ayuGram)
-    }))
     if let tonState = data.tonState {
         if abs(tonState.balance.value) > 0 {
             let balanceText: NSAttributedString

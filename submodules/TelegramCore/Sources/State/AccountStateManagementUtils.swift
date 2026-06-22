@@ -4465,8 +4465,8 @@ func replayFinalState(
                 var retainedGlobalIds = Set<Int32>()
                 for messageId in transaction.messageIdsForGlobalIds(ids) {
                     if let message = transaction.getMessage(messageId) {
-                        if retainAyuDeletedMessage(transaction: transaction, message: message), let globallyUniqueId = message.globallyUniqueId {
-                            retainedGlobalIds.insert(Int32(clamping: globallyUniqueId))
+                        if retainAyuDeletedMessage(transaction: transaction, message: message) {
+                            retainedGlobalIds.insert(messageId.id)
                         }
                     }
                 }
@@ -4478,7 +4478,7 @@ func replayFinalState(
                 if !resourceIds.isEmpty {
                     let _ = mediaBox.removeCachedResources(Array(Set(resourceIds)), force: true).start()
                 }
-                deletedMessageIds.append(contentsOf: ids.map { .global($0) })
+                deletedMessageIds.append(contentsOf: idsToDelete.map { .global($0) })
             case let .DeleteMessages(ids):
                 var idsToDelete: [MessageId] = []
                 for id in ids {
@@ -4493,7 +4493,7 @@ func replayFinalState(
                 _internal_deleteMessages(transaction: transaction, mediaBox: mediaBox, ids: idsToDelete, manualAddMessageThreadStatsDifference: { id, add, remove in
                     addMessageThreadStatsDifference(threadKey: id, remove: remove, addedMessagePeer: nil, addedMessageId: nil, isOutgoing: false)
                 })
-                deletedMessageIds.append(contentsOf: ids.map { .messageId($0) })
+                deletedMessageIds.append(contentsOf: idsToDelete.map { .messageId($0) })
             case let .UpdateMinAvailableMessage(id):
                 if let message = transaction.getMessage(id) {
                     updatePeerChatInclusionWithMinTimestamp(transaction: transaction, id: id.peerId, minTimestamp: message.timestamp, forceRootGroupIfNotExists: false)
